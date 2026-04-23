@@ -1,0 +1,279 @@
+# Support points and quantization
+
+For reference, the method used in this notebook was originally proposed in this paper: https://arxiv.org/pdf/1609.01811.pdf.  You don't need to review this paper, sufficient background will be provided in this notebook, in the 'multivariate' methods document, and in the lectures.
+
+```{r}
+library(ggplot2)
+library(Polychrome)
+source("../scripts/read.R")
+```
+
+The algorithms used here do not scale well to large datasets, so we subsample the profiles for speed.
+
+```{r}
+m = 20000
+n = dim(temp)[2]
+ii = sample(1:n, 20000, replace=FALSE)
+temp = temp[,ii]
+psal = psal[,ii]
+lat = lat[ii]
+lon = lon[ii]
+day = day[ii]
+```
+
+The 'dsamp' function subsamples the columns of an array X so there are no more than 'cmax' columns.
+
+```{r}
+dsamp = function(X, cmax=1000) {
+    n = dim(X)[2]
+    if (n > cmax) {
+        ii = sample(1:n, cmax, replace=F)
+        X = X[, ii]
+    }
+    return(X)
+}
+```
+
+The 'ediff' function calculates the average distance between a column of X and a column of Y.
+
+```{r}
+ediff = function(X, Y) {
+    if (dim(X)[2] > dim(Y)[2]) {
+        Z = X
+        X = Y
+        Y = Z
+    }
+    d = 0.0
+    for (j in 1:dim(X)[2]) {
+        u = (Y - X[, j])^2
+        d = d + sum(sqrt(apply(u, 2, sum)))
+    }
+    d = d / (dim(X)[2] * dim(Y)[2])
+    return(d)
+}
+```
+
+The 'energy_distance' function calculates the (sample) energy distance between the columns of X and Y.
+
+```{r}
+energy_distance = function(X, Y) {
+  X = dsamp(X)
+  Y = dsamp(Y)
+  return(2*ediff(X, Y) - ediff(X, X) - ediff(Y, Y))
+}
+```
+
+The 'update_support' function is used in the majorization-maximization (MM) algorithm for computing the support points.
+
+```{r}
+# Equation 22 in Mak et al.
+update_support = function(X, Y) {
+    p = dim(Y)[1]
+    N = dim(Y)[2]
+    n = dim(X)[2]
+    XX = array(0, c(p, n))
+
+    for (i in 1:n) {
+        Dx = X[,i] - X
+        DxN = sqrt(colSums(Dx^2))
+        DxN[i] = Inf
+        Dy = X[,i] - Y
+        DyN = sqrt(colSums(Dy^2))
+        q = sum(1 / DyN)
+        XX[,i] = (Dx %*% (1/DxN)) * (N / n)
+        XX[,i] = XX[,i] + Y %*% (1/DyN)
+        XX[,i] = XX[,i] / q
+    }
+
+    return(XX)
+}
+```
+
+The 'support' function calculates N support points for the data in Y.  The data points are stored in the columns of Y.  The loss function for calculating support points is not convex, so there are many different local minimizers.  This is not a major problem for using support points in practice, and we will consider this issue further below.
+
+```{r}
+support = function(Y, N, maxiter=1000) {
+
+    p = dim(Y)[1]
+    n = dim(Y)[2]
+    X = array(rnorm(N*p), c(p, N))
+
+    for (i in 1:maxiter) {
+        X1 = update_support(X, Y)
+        ee = norm(X1 - X)
+        X = X1
+        if (ee < 1e-8) {
+            break
+        }
+    }
+
+    return(X)
+}
+```
+
+It will be helpful to know the "diameters" of the temperature and salinity profile sets, which are calculated below
+
+```{r}
+temp1 = dsamp(temp)
+ediff(temp1, temp1)
+```
+
+```{r}
+psal1 = dsamp(psal)
+ediff(psal1, psal1)
+```
+
+Plot support points for temperature and salinity separately.
+
+```{r}
+spt_points = list()
+
+for (j in 1:2) {
+
+    if (j == 1) {
+        xdat = temp
+        ylab = "Temperature"
+    } else {
+        xdat = psal
+        ylab = "Salinity"
+    }
+
+    # Make plots with different numbers of support points.
+    for (npt in c(1, 2, 5)) {
+        cat(sprintf("npt=%d\n", npt))
+        spt = support(xdat, npt, maxiter=50)
+        spt_points[[sprintf("%d:%d", j, npt)]] = spt
+
+        # Put the support points in long form for plotting
+        da = data.frame(x=array(spt), g=kronecker(1:npt, array(1, 100)),
+                        pressure=kronecker(array(1, npt), pressure))
+        da = da %>% mutate(g=sprintf("NC%d", g))
+
+        plt = ggplot(aes(x=pressure, y=x, group=g, color=g), data=da) + geom_line()
+        plt = plt + scale_color_manual(values=light.colors(n=npt))
+        plt = plt + labs(x="Pressure", y=ylab) + ggtitle(sprintf("%d support points", npt))
+        print(plt)
+    }
+}
+```
+To understand the joint variation of temperature and salinity, concatenate these two measures and calculate support points.  Before concatenation, Z-score all temperature measures and all salinity measures.
+
+```{r}
+tempz = (temp - mean(temp)) / sd(temp)
+psalz = (psal - mean(psal)) / sd(psal)
+tp = rbind(tempz, psalz)
+for (npt in c(3, 5)) {
+    S = support(tp, npt, maxiter=50)
+
+    # Put the support points in long form for plotting
+    ix = kronecker(1:(2*npt), array(1, 100))
+    spt = sprintf("NC%d", 1 + (ix %% npt))
+    mea = c("Temp", "Psal")[1 + floor((ix - 1) / npt)]
+    grp = c(sprintf("Temp%d", 1:npt), sprintf("Psal%d", 1:npt))[ix]
+    da = data.frame(x=array(S), grp=grp, spt=spt, mea=mea,
+                    pressure=kronecker(array(1, 2*npt), pressure))
+
+    plt = ggplot(aes(x=pressure, y=x, group=grp, color=spt, lty=mea), data=da) + geom_line()
+    plt = plt + scale_color_manual(values=light.colors(n=npt))
+    plt = plt + labs(x="Pressure", y=ylab) + ggtitle(sprintf("%d support points", npt))
+    print(plt)
+}
+```
+# Maps of profiles based on support point associations
+
+We can assign each profile to its spatially-closest support point, and make a map of the Pacific Ocean in which the profiles are colored based on these associations.
+
+
+```{r}
+support_neighbor = function(X, S) {
+    m = dim(S)[2]
+    n = dim(X)[2]
+    di = array(0, c(n, m))
+    for (j in 1:m) {
+        di[,j] = apply((X - S[,j])^2, 2, sum)  
+    }
+    ii = apply(di, 1, which.min)
+    return(ii)
+}
+```
+
+```{r}
+npt = 5
+for (j in 1:2) {
+
+    if (j == 1) {
+        xdat = temp
+        ti = "Temperature"
+    } else {
+        xdat = psal
+        ti = "Salinity"
+    }
+  
+    S = spt_points[[sprintf("%d:%d", j, npt)]]
+    ii = support_neighbor(xdat, S)
+    ii = sprintf("NC%d", ii)
+    xx = data.frame(lat=lat, lon=lon, grp=ii)
+    
+    lon0 = 70
+    xx$lon = (xx$lon + lon0) %% 360
+    
+    gg = ggplot(data=xx, aes(x=lon, y=lat, group=grp, color=grp)) + geom_point()
+    gg = gg + scale_color_manual(values=light.colors(n=npt)) + xlim(180, 360)
+    gg = gg + labs(title=ti)
+    print(gg)
+}
+```
+
+# Stability analysis of support point estimation
+
+One of the principles of veridical data science is stability, which basically means that the results of a data analysis should not be highly sensitive to small data perturbations or reasonable alternatives to the data analysis approach. Below we conduct a very simplistic stability assessment for the support point analysis. We will perturb the data by subsampling 10,000 observations at a time without replacement. We then quantify the extent to which the minimized energy distance found through the support point optimization changes substantially upon subsampling. In addition, we assess the extent to which the support points themselves are The following function calculates the average distance between a column of X and a column of Y.
+
+Set the variable 'xdat' to either 'temp' or 'psal' to conduct this stability analysis on the temperature or salinity data.
+
+```{r}
+xdat = temp
+```
+
+Below we calculate 'npt' support points 'nrep' times, each time using a random subsample of 10,000 profiles.
+
+
+```{r}
+npt = 10
+nrep = 5
+S = list()
+n = dim(xdat)[2]
+for (k in 1:nrep) {
+    ii = sample(1:n, 10000, replace=F)
+    S[[k]] = support(xdat[, ii], npt, maxiter=50)
+}
+```
+
+One way to assess stability is to check the energy distance between each set of support points and the target distribution. This is the quantity being minimized when the support points are constructed. This value will vary among the random subsamples as shown below.
+
+```{r}
+for (k in 1:nrep) {
+  print(energy_distance(S[[k]], xdat))
+}
+```
+
+We can compare these energy distances to the distances between a random subset of profiles (of the same size) and the full dataset. This analysis shows that the support points do a much better job of representing the population than a random set of profiles.
+
+```{r}
+n = dim(xdat)[2]
+for (k in 1:nrep) {
+  ii = sample(1:n, npt, replace=FALSE)
+  print(energy_distance(xdat[,ii], xdat))
+}
+```
+
+We can also consider how close (in energy distance) different support point sets are from each other.
+
+```{r}
+D = array(0, c(nrep, nrep))
+for (j in 1:nrep) {
+  for (k in 1:nrep) {
+    D[j, k] = energy_distance(S[[j]], S[[k]])
+  }
+}
+D
+```

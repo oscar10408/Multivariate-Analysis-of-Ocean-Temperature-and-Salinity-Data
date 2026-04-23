@@ -1,14 +1,14 @@
-# Ocean Profile Analysis
+# Multivariate Analysis of Ocean Temperature and Salinity Data Using ARGO
 
-This repository analyzes **ARGO ocean temperature and salinity profiles** using multivariate statistical methods. The project focuses on how vertical ocean structure varies across the Pacific in 2020 and how dimension reduction, robust covariance estimation, depth-based outlier detection, and quantization can reveal meaningful large-scale ocean patterns.
+This repository analyzes **ARGO ocean temperature and salinity data** using multivariate statistical methods. The project studies how vertical ocean structure varies across the Pacific in 2020 and shows how dimension reduction, robust covariance estimation, depth-based outlier detection, and representative-point compression can reveal meaningful large-scale ocean patterns.
 
-The original course submission was prepared as a **slide-based report**, so this repo packages the slides together with the supporting notebooks and scripts, while also surfacing the main figures and findings directly in the README.
+The original course submission was prepared as a **slide-based report**, but this repository reorganizes the project into a cleaner GitHub format with the main code, supporting materials, and selected figures surfaced directly in the README.
 
 ## Why this project matters
 
-ARGO profiles are high-dimensional functional observations. Each float profile contains temperature and salinity measured over depth, along with geographic and temporal context. These data are too rich to summarize well with simple univariate plots alone.
+ARGO measurements are naturally **high-dimensional functional observations**. Each float profile contains temperature and salinity observed across pressure levels, together with geographic and temporal context. These data are too rich to summarize well with simple univariate plots alone.
 
-This project shows how to analyze them with a **multivariate workflow** that combines:
+This project demonstrates a multivariate workflow that combines:
 - dimension reduction
 - cross-profile dependence analysis
 - supervised sufficient dimension reduction
@@ -43,59 +43,87 @@ The analysis uses **49,576 ARGO profiles** from the **Pacific Ocean in 2020**.
 
 | Topic | Main finding |
 |---|---|
-| Temperature PCA | PC1 mainly captures the overall upper-ocean temperature level |
+| Global coverage | ARGO floats provide broad spatial coverage across the Pacific, with strong latitudinal structure |
+| Mean vertical structure | Temperature decreases sharply with depth, while salinity shows a more nonlinear vertical pattern |
+| Temperature PCA | Leading components capture interpretable upper-ocean and basin-scale variation |
 | Salinity PCA | PC3 reflects basin-scale regional salinity contrasts |
 | Temperature-salinity coupling | The leading canonical mode is strong, with canonical correlation around **0.888** |
-| SIR | Latitude-related structure is strongest in the upper to mid-depth temperature profile |
-| Robust outlier analysis | Outlying profiles are geographically clustered, not randomly scattered |
+| SIR | Latitude-related structure is stronger in temperature than in salinity, especially in upper to mid-depth regions |
+| Robust outlier analysis | Outlying profiles are geographically clustered rather than randomly scattered |
 | Support points | A small representative set preserves dominant regional profile structure |
 
 ## Selected figures
 
-### Exploratory structure of the profiles
+### 1. ARGO float distribution across the Pacific
 
-This slide summarizes the vertical profile behavior and temperature-salinity relationship that motivate the rest of the multivariate analysis.
+This map shows the broad geographic coverage of the ARGO observations used in the analysis.
 
-![EDA slide](figures/page_2.png)
+![Global ARGO float distribution](figures/argo_float_distribution.png)
 
-### PCA reveals interpretable dominant modes
+### 2. Physical coupling in temperature-salinity space
 
-The slide below highlights how principal components summarize physically meaningful variation, including overall temperature level and regional salinity structure.
+The T-S diagram gives a compact physical view of how temperature and salinity co-vary across the full sample.
 
-![PCA slide](figures/page_5.png)
+![T-S diagram](figures/ts_diagram.png)
 
-### CCA captures coupled temperature-salinity structure
+### 3. Unified vertical structure of temperature and salinity
 
-A strong leading canonical mode shows that temperature and salinity co-vary in a systematic large-scale way.
+The mean temperature and salinity curves, along with their interquartile bands, summarize the typical vertical structure of the Pacific profiles.
 
-![CCA slide](figures/page_7.png)
+![Unified vertical structure](figures/unified_vertical_structure.png)
 
-### SIR identifies depth regions most informative for latitude
+### 4. Support-point profile summaries
 
-Supervised dimension reduction shows that latitude signal is much more prominent in temperature than in salinity, especially in upper to mid-depth water.
+These representative curves show how a small set of support points can approximate the broader temperature and salinity distribution.
 
-![SIR slide](figures/page_8.png)
+![Support point profiles](figures/support_points_profiles.png)
 
-### Robust covariance and outlier analysis
+### 5. Support-point geographic representation
 
-The MCD-based analysis shows that unusual profiles are spatially structured rather than random noise.
+The support points are not only representative in profile space, but also reflect broad geographic structure in the Pacific basin.
 
-![MCD slide](figures/page_9.png)
+![Support point map and representative profile](figures/support_points_map.png)
 
-### Support points compress the dataset while preserving broad structure
+### 6. PCA regional structure in temperature and salinity
 
-Support points provide a compact summary of the full profile distribution and still retain large-scale geographic variation.
+Principal-component based grouping reveals large-scale spatial organization in both temperature and salinity fields.
 
-![Support points slide](figures/page_6.png)
+![Temperature and salinity PCA regional structure](figures/pca_regional_structure.png)
+
+### 7. Salinity PC3 and its geographic expression
+
+Salinity PC3 captures a distinct mode of vertical salinity variation and separates geographically meaningful regions across the basin.
+
+![Salinity PC3 loadings and geographic expression](figures/pca_salinity_pc3.png)
+
+### 8. Canonical correlation analysis (CCA)
+
+CCA identifies coupled temperature-salinity modes. The figure below shows the leading canonical spatial pattern and the corresponding temperature and salinity profile shapes.
+
+![CCA component map](figures/cca_component_map.png)
+
+![CCA profile shapes](figures/cca_profile_shapes.png)
+
+### 9. SIR for latitude-related structure
+
+SIR highlights which depth regions are most informative for latitude and shows that temperature contains stronger supervised structure than salinity.
+
+![SIR latitude analysis](figures/sir_latitude_analysis.png)
+
+### 10. Robust outlier analysis with MCD
+
+The MCD-based analysis identifies geographically clustered outlying profiles and compares them against a representative central temperature curve.
+
+![MCD outlier profiles](figures/mcd_outlier_profiles.png)
 
 ## Main takeaways
 
-- Ocean profile data are naturally **functional and multivariate**, so multivariate methods add real value beyond simple summaries
-- A small number of latent components captures much of the vertical profile variation
-- Temperature and salinity are strongly coupled, but not redundantly so
-- Geographic structure, especially latitude, is reflected more strongly in temperature than salinity
-- Robust methods are important because unusual profiles are present and spatially patterned
-- Representative-point methods can compress a large profile dataset without discarding its dominant structure
+- Ocean temperature and salinity data are naturally **functional and multivariate**, so multivariate methods add real value beyond simple summaries.
+- A small number of latent components captures much of the large-scale vertical structure.
+- Temperature and salinity are strongly coupled, but the coupling is not redundant and contains interpretable basin-scale patterns.
+- Geographic structure, especially latitude, is reflected more strongly in temperature than salinity in the supervised analysis.
+- Robust methods matter because unusual profiles are present and spatially patterned.
+- Representative-point methods can compress a large profile dataset while preserving its dominant structure.
 
 ## Repository structure
 
@@ -113,12 +141,17 @@ ocean_profile_analysis_repo_package/
 │   ├── report_slides.pptx
 │   └── support_notes.pdf
 ├── figures/
-│   ├── page_2.png
-│   ├── page_5.png
-│   ├── page_6.png
-│   ├── page_7.png
-│   ├── page_8.png
-│   └── page_9.png
+│   ├── argo_float_distribution.png
+│   ├── ts_diagram.png
+│   ├── unified_vertical_structure.png
+│   ├── support_points_profiles.png
+│   ├── support_points_map.png
+│   ├── pca_regional_structure.png
+│   ├── pca_salinity_pc3.png
+│   ├── cca_component_map.png
+│   ├── cca_profile_shapes.png
+│   ├── sir_latitude_analysis.png
+│   └── mcd_outlier_profiles.png
 ├── scripts/
 │   ├── depth.jl
 │   ├── get_data.jl
@@ -168,16 +201,16 @@ This produces the processed matrices expected by the analysis notebooks.
 
 ## Notes
 
-- The original submission was a **slide deck**, so this repository is intentionally organized to make the code and results easier to browse on GitHub.
+- The original submission was a **slide deck**, but this repository highlights exported analysis figures directly in the README so the results are easier to browse on GitHub.
 - The processed matrices are not bundled here because they can be regenerated from raw ARGO downloads.
-- The slide screenshots in `figures/` are included so the repository remains visually informative even without opening the presentation.
+- The presentation is still included in `docs/` for reference.
 
 ## Possible next improvements
 
-- export individual plots from notebooks instead of relying mainly on slide screenshots
 - add explained-variance and loading tables directly from the PCA pipeline
 - include a lightweight sample of processed profile data for faster reproduction
 - build an interactive map for profile and outlier exploration
+- add a small environment file for easier setup across Julia, Python, and R workflows
 
 ## Author
 
